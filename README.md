@@ -8,3 +8,6 @@ Number of trades executed on a particular symbol with the size relating to the c
 
 nlargest trades by Cash Value
 ![2022-01-13_14h47_03](https://user-images.githubusercontent.com/88872916/149420986-16658f68-80aa-4928-aa05-57fb20316d49.png)
+
+Search by symbol and create a boxplot here
+![2022-01-13_14h49_51](https://user-images.githubusercontent.com/88872916/149421328-9bf4d2e4-d473-4b8f-b627-372223040a3a.png)
