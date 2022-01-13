@@ -1,0 +1,150 @@
+## Imports
+import plotly.express as px
+import yfinance as yf
+import pandas as pd
+import pandas_ta as ta
+import numpy as np
+import datetime as dt
+import altair as alt
+import mplfinance as mpf ## Simple Candlestick Charting
+import plotly.graph_objects as go
+import warnings
+warnings.simplefilter('ignore')
+
+## Global
+alt_color_range1 = ['#4F6AA4', 'red']
+alt_color_range2 = ['#1a936f', 'red']
+today = dt.date.today().strftime("%m-%d-%Y")
+stocks_csv = f'Input/unusual-stock-options-activity-{today}.csv'
+
+df = pd.read_csv(stocks_csv)
+df.index += 1
+df.dropna(inplace=True)
+df.rename(columns={
+    'Exp Date': 'Expiration',
+    'Midpoint': 'Mid',
+    'Open Int': 'OI',
+    'DTE': 'Days to Exp',
+    "Time": "Date"}, inplace=True)
+df['Time'] = dt.datetime.today()
+df['Expiration'] = pd.to_datetime(df['Expiration'])
+df['Cash Value'] = (df['Volume'] * df['Last'] * 100).astype(int)
+df['Price'] = df['Price'].astype(float)
+df['Strike'] = df['Strike'].astype(float)
+df['Volume'] = df['Volume'].astype(int)
+df['Days to Exp'] = df['Days to Exp'].astype(int)
+df['OI'] = df['OI'].astype(int)
+df['Delta'] = df['Delta'].astype(float)
+df = (df[['Symbol', 'Type', 'Price', 'Strike', 'Last', 'Expiration', 'Cash Value', 'Volume', 'OI', 'Vol/OI', 'IV', 'Delta', 'Days to Exp', 'Bid', 'Mid', 'Ask', 'Date']])
+df = df.sort_values(by=(['Symbol', 'Expiration', 'Type', 'Cash Value']))
+
+## Available Filters
+vol10k_fltr = (df['Volume'] > 10000)
+nooi_fltr = (df['OI'] == 0)
+oi2k_fltr = (df['OI'] < 2500)
+cp_fltr = (df['Price'] < 15.00)
+price_fltr = (df['Last'] < 2.5)
+price_fltr2 = (df['Last'] < 5.00)
+dte_fltr = (df['Days to Exp'] > 3.0) ## Filter by Days to Expiration
+call_fltr_delta = (df['Delta'] < 0.40)
+call_fltr_delta2 = (df['Delta'] > 0.15) ## Filter by Delta
+put_fltr_delta = (df['Delta'] > -0.40)
+put_fltr_delta2 = (df['Delta'] < -0.15)
+call_fltr = (df['Price'] < df['Strike']) & (df['Type'] == 'Call') ## Filter for Calls
+put_fltr = (df['Price'] > df['Strike']) & (df['Type'] == 'Put') ## Filter for Puts
+
+## Cash Value Filters
+val_250k_fltr = (df['Cash Value'] > 250000)
+val_500k_fltr = (df['Cash Value'] > 500000)
+val_1m_fltr = (df['Cash Value'] > 1000000)
+val_5m_fltr = (df['Cash Value'] > 5000000)
+val_10m_fltr = (df['Cash Value'] > 10000000)
+val_25m_fltr = (df['Cash Value'] > 25000000)
+
+## View Ready Filters
+call_df = (df[val_1m_fltr & call_fltr & dte_fltr & price_fltr2])
+put_df = (df[val_1m_fltr & put_fltr & dte_fltr & price_fltr2])
+main_df = (df[val_1m_fltr & vol10k_fltr & oi2k_fltr & price_fltr2])
+big_df = (df[val_500k_fltr & price_fltr2])
+big_calls = (df[val_1m_fltr & call_fltr_delta & call_fltr_delta2])
+big_puts = (df[val_1m_fltr & put_fltr_delta & put_fltr_delta2])
+top_filt = (df[val_250k_fltr & price_fltr][call_fltr | put_fltr])
+
+## Create Symbol Filters
+aapl = df[df['Symbol'] == 'AAPL']
+aal = df[df['Symbol'] == 'AAL']
+abnb = df[df['Symbol'] == 'ABNB']
+adbe = df[df['Symbol'] == 'ADBE']
+amzn = df[df['Symbol'] == 'AMZN']
+amc = df[df['Symbol'] == 'AMC']
+amd = df[df['Symbol'] == 'AMD']
+asan = df[df['Symbol'] == 'ASAN']
+ba = df[df['Symbol'] == 'BA']
+crm = df[df['Symbol'] == 'CRM']
+ccl = df[df['Symbol'] == 'CCL']
+dkng = df[df['Symbol'] == 'DKNG']
+docu = df[df['Symbol'] == 'DOCU']
+tsla = df[df['Symbol'] == 'TSLA']
+nvda = df[df['Symbol'] == 'NVDA']
+ddog = df[df['Symbol'] == 'DDOG']
+fb = df[df['Symbol'] == 'FB']
+pton = df[df['Symbol'] == 'PTON']
+rblx = df[df['Symbol'] == 'RBLX']
+msft = df[df['Symbol'] == 'MSFT']
+mara = df[df['Symbol'] == 'MARA']
+mnra = df[df['Symbol'] == 'MNRA']
+ual = df[df['Symbol'] == 'UAL']
+bac = df[df['Symbol'] == 'BAC']
+jpm = df[df['Symbol'] == 'JPM']
+bidu = df[df['Symbol'] == 'BIDU']
+roku = df[df['Symbol'] == 'ROKU']
+googl = df[df['Symbol'] == 'GOOGL']
+nflx = df[df['Symbol'] == 'NFLX']
+fubo = df[df['Symbol'] == 'FUBO']
+hood = df[df['Symbol'] == 'HOOD']
+pltr = df[df['Symbol'] == 'PLTR']
+fsr = df[df['Symbol'] == 'FSR']
+pfe = df[df['Symbol'] == 'PFE']
+snap = df[df['Symbol'] == 'SNAP']
+spce = df[df['Symbol'] == 'SPCE']
+riot = df[df['Symbol'] == 'RIOT']
+gme = df[df['Symbol'] == 'GME']
+faang = pd.concat([fb, aapl, amzn, nflx, googl])
+cheap_giants = pd.concat([aapl, nvda, fb, msft])
+expensive_giants = pd.concat([tsla, amzn, googl])
+
+## Bubble Chart 1, shows option sentiment by 125 largest option trades. Amount can be changed in the first kwarg of the nlargest filter.
+sym_count = alt.Chart(df.nlargest(125, 'Cash Value')).mark_circle(opacity=0.8).encode(
+    alt.X('Symbol'),
+    alt.Y('count(Symbol)', title='Number of Trades / Size of Trades'),
+    alt.Color('Type', scale=alt.Scale(range=alt_color_range1)),
+    alt.Size('mean(Cash Value)')
+).properties(
+    title='Chart by @jmpco - Top 100 registered option trades on scanner with the mean of all trades',
+    width=640,
+    height=440
+).interactive()
+
+## Bubble Chart 2, shows Cash Value with bubble size being related to Vol/OI See above comment to change amount of trades to be considered.
+chart = alt.Chart(df.nlargest(250, 'Cash Value')).mark_circle(opacity=0.8).encode(
+    alt.X('Symbol'),
+    alt.Y('Cash Value'),
+    alt.Color('Type', scale=alt.Scale(range=alt_color_range1)),
+    alt.Size('Cash Value')
+).properties(
+    height=440,
+    title="Chart by @jmpco - ETF Options Sentiment"
+).interactive()
+
+## Boxplot View
+nlarg_chart = alt.Chart(tsla).mark_boxplot().encode(
+    alt.X('Type'),
+    alt.Y('average(Cash Value)'),
+    alt.Color('Type', scale=alt.Scale(range=alt_color_range1)),
+    column='Expiration'
+).properties(
+    title=f'Chart by @jmpco Options Sentiment for $TSLA - {today}'
+).configure_title(
+    font='Courier',
+    fontSize=14
+).interactive()
